@@ -1,8 +1,36 @@
-import { users, type User, type InsertUser, type Company, type InsertCompany, type Service, type InsertService, type Review, type InsertReview } from "@shared/schema";
+import { 
+  users, 
+  companies, 
+  services, 
+  reviews, 
+  pageVisits,
+  visitorSessions,
+  type User, 
+  type InsertUser, 
+  type Company, 
+  type InsertCompany, 
+  type Service, 
+  type InsertService, 
+  type Review, 
+  type InsertReview,
+  type PageVisit,
+  type InsertPageVisit,
+  type VisitorSession,
+  type InsertVisitorSession
+} from "@shared/schema";
+import { eq, desc, and } from "drizzle-orm";
+import { db } from "./db";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+
+const PostgresSessionStore = connectPg(session);
 
 // Interface for storage operations
 export interface IStorage {
-  // User methods (keep existing)
+  // Session store for authentication
+  sessionStore: session.Store;
+  
+  // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -21,65 +49,63 @@ export interface IStorage {
   // Review methods
   getReviewsForCompany(companyId: number): Promise<Review[]>;
   createReview(review: InsertReview): Promise<Review>;
+  
+  // Page visit methods
+  recordPageVisit(visit: InsertPageVisit): Promise<PageVisit>;
+  getPageVisitsForCompany(companyId: number, limit?: number): Promise<PageVisit[]>;
+  
+  // Visitor session methods
+  startVisitorSession(session: InsertVisitorSession): Promise<VisitorSession>;
+  endVisitorSession(id: number, duration: number): Promise<VisitorSession | undefined>;
+  getVisitorSessionsForCompany(companyId: number, limit?: number): Promise<VisitorSession[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private companies: Map<number, Company>;
-  private services: Map<number, Service>;
-  private reviews: Map<number, Review>;
-  private userCurrentId: number;
-  private companyCurrentId: number;
-  private serviceCurrentId: number;
-  private reviewCurrentId: number;
-
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+  
   constructor() {
-    this.users = new Map();
-    this.companies = new Map();
-    this.services = new Map();
-    this.reviews = new Map();
-    this.userCurrentId = 1;
-    this.companyCurrentId = 1;
-    this.serviceCurrentId = 1;
-    this.reviewCurrentId = 1;
+    // Setup session store with PostgreSQL
+    // Using simplified configuration to avoid startup issues
+    this.sessionStore = new PostgresSessionStore({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: true,
+      tableName: 'session'
+    });
   }
 
-  // User methods (keep existing)
+  // User methods
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userCurrentId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    // If slug is not provided in a name, generate one from the name
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
   
   // Company methods
   async getAllCompanies(): Promise<Company[]> {
-    return Array.from(this.companies.values());
+    return await db.select().from(companies).orderBy(companies.name);
   }
   
   async getCompany(id: number): Promise<Company | undefined> {
-    return this.companies.get(id);
+    const [company] = await db.select().from(companies).where(eq(companies.id, id));
+    return company;
   }
   
   async getCompanyBySlug(slug: string): Promise<Company | undefined> {
-    return Array.from(this.companies.values()).find(
-      (company) => company.slug === slug,
-    );
+    const [company] = await db.select().from(companies).where(eq(companies.slug, slug));
+    return company;
   }
   
   async createCompany(insertCompany: InsertCompany): Promise<Company> {
-    const id = this.companyCurrentId++;
-    
     // If slug is not provided, generate one from the name
     if (!insertCompany.slug) {
       const slug = insertCompany.name
@@ -93,47 +119,90 @@ export class MemStorage implements IStorage {
       insertCompany.slug = slug;
     }
     
-    const company: Company = { ...insertCompany, id };
-    this.companies.set(id, company);
+    const [company] = await db.insert(companies).values(insertCompany).returning();
     return company;
   }
   
   async updateCompany(id: number, companyUpdate: Partial<Company>): Promise<Company | undefined> {
-    const company = this.companies.get(id);
-    if (!company) return undefined;
+    const [updatedCompany] = await db
+      .update(companies)
+      .set({ ...companyUpdate, updatedAt: new Date() })
+      .where(eq(companies.id, id))
+      .returning();
     
-    const updatedCompany = { ...company, ...companyUpdate };
-    this.companies.set(id, updatedCompany);
     return updatedCompany;
   }
   
   // Service methods
   async getServicesForCompany(companyId: number): Promise<Service[]> {
-    return Array.from(this.services.values()).filter(
-      (service) => service.companyId === companyId,
-    );
+    return await db
+      .select()
+      .from(services)
+      .where(eq(services.companyId, companyId))
+      .orderBy(services.order);
   }
   
   async createService(insertService: InsertService): Promise<Service> {
-    const id = this.serviceCurrentId++;
-    const service: Service = { ...insertService, id };
-    this.services.set(id, service);
+    const [service] = await db.insert(services).values(insertService).returning();
     return service;
   }
   
   // Review methods
   async getReviewsForCompany(companyId: number): Promise<Review[]> {
-    return Array.from(this.reviews.values()).filter(
-      (review) => review.companyId === companyId,
-    );
+    return await db
+      .select()
+      .from(reviews)
+      .where(eq(reviews.companyId, companyId))
+      .orderBy(desc(reviews.createdAt));
   }
   
   async createReview(insertReview: InsertReview): Promise<Review> {
-    const id = this.reviewCurrentId++;
-    const review: Review = { ...insertReview, id };
-    this.reviews.set(id, review);
+    const [review] = await db.insert(reviews).values(insertReview).returning();
     return review;
+  }
+  
+  // Page visit methods
+  async recordPageVisit(visit: InsertPageVisit): Promise<PageVisit> {
+    const [pageVisit] = await db.insert(pageVisits).values(visit).returning();
+    return pageVisit;
+  }
+  
+  async getPageVisitsForCompany(companyId: number, limit: number = 100): Promise<PageVisit[]> {
+    return await db
+      .select()
+      .from(pageVisits)
+      .where(eq(pageVisits.companyId, companyId))
+      .orderBy(desc(pageVisits.visitedAt))
+      .limit(limit);
+  }
+  
+  // Visitor session methods
+  async startVisitorSession(sessionData: InsertVisitorSession): Promise<VisitorSession> {
+    const [session] = await db.insert(visitorSessions).values(sessionData).returning();
+    return session;
+  }
+  
+  async endVisitorSession(id: number, duration: number): Promise<VisitorSession | undefined> {
+    const [session] = await db
+      .update(visitorSessions)
+      .set({ 
+        endedAt: new Date(),
+        duration
+      })
+      .where(eq(visitorSessions.id, id))
+      .returning();
+    
+    return session;
+  }
+  
+  async getVisitorSessionsForCompany(companyId: number, limit: number = 100): Promise<VisitorSession[]> {
+    return await db
+      .select()
+      .from(visitorSessions)
+      .where(eq(visitorSessions.companyId, companyId))
+      .orderBy(desc(visitorSessions.startedAt))
+      .limit(limit);
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
