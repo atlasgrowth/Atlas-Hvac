@@ -13,9 +13,9 @@ import AuthPage from "@/pages/AuthPage";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <ProtectedRoute path="/" component={AdminDashboard} />
       <Route path="/auth" component={AuthPage} />
-      <ProtectedRoute path="/admin" component={AdminDashboard} />
+      <Route path="/directory" component={Home} />
       <Route path="/:slug" component={CompanyPage} />
       <Route component={NotFound} />
     </Switch>
