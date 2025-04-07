@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { Redirect, Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -28,17 +28,32 @@ export default function AdminDashboard() {
   // Filter state for companies
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [locationFilter, setLocationFilter] = useState<string | null>(null);
   
   // Filter companies
   const filteredCompanies = companies?.filter(company => {
+    // Text search filter
     const matchesSearch = !searchQuery || 
       company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       company.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       company.state?.toLowerCase().includes(searchQuery.toLowerCase());
     
+    // Status filter (prospect, active, etc)
     const matchesStatus = !statusFilter || company.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    // Location filter (Little Rock, AR or Birmingham, AL)
+    const matchesLocation = !locationFilter || (
+      (locationFilter === "little-rock" && 
+        (company.city?.toLowerCase().includes("little rock") || 
+         company.state?.toLowerCase() === "ar" || 
+         company.state?.toLowerCase() === "arkansas")) ||
+      (locationFilter === "birmingham" && 
+        (company.city?.toLowerCase().includes("birmingham") || 
+         company.state?.toLowerCase() === "al" || 
+         company.state?.toLowerCase() === "alabama"))
+    );
+    
+    return matchesSearch && matchesStatus && matchesLocation;
   });
   
   // Logout handler
@@ -211,7 +226,7 @@ export default function AdminDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col md:flex-row gap-4 mb-6">
+                <div className="flex flex-col gap-4 mb-6">
                   <div className="flex-1">
                     <Label htmlFor="search" className="sr-only">Search</Label>
                     <Input
@@ -222,28 +237,70 @@ export default function AdminDashboard() {
                       className="w-full"
                     />
                   </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant={!statusFilter ? "default" : "outline"}
-                      onClick={() => setStatusFilter(null)}
-                      size="sm"
-                    >
-                      All
-                    </Button>
-                    <Button 
-                      variant={statusFilter === "prospect" ? "default" : "outline"}
-                      onClick={() => setStatusFilter("prospect")}
-                      size="sm"
-                    >
-                      Prospects
-                    </Button>
-                    <Button 
-                      variant={statusFilter === "active" ? "default" : "outline"}
-                      onClick={() => setStatusFilter("active")}
-                      size="sm"
-                    >
-                      Active
-                    </Button>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Pipeline Status Filter */}
+                    <div className="space-y-2">
+                      <Label>Pipeline Status</Label>
+                      <div className="flex flex-wrap gap-2">
+                        <Button 
+                          variant={!statusFilter ? "default" : "outline"}
+                          onClick={() => setStatusFilter(null)}
+                          size="sm"
+                        >
+                          All
+                        </Button>
+                        <Button 
+                          variant={statusFilter === "prospect" ? "default" : "outline"}
+                          onClick={() => setStatusFilter("prospect")}
+                          size="sm"
+                        >
+                          Prospects
+                        </Button>
+                        <Button 
+                          variant={statusFilter === "active" ? "default" : "outline"}
+                          onClick={() => setStatusFilter("active")}
+                          size="sm"
+                        >
+                          Active
+                        </Button>
+                        <Button 
+                          variant={statusFilter === "inactive" ? "default" : "outline"}
+                          onClick={() => setStatusFilter("inactive")}
+                          size="sm"
+                        >
+                          Inactive
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* Location Filter */}
+                    <div className="space-y-2">
+                      <Label>Location</Label>
+                      <div className="flex flex-wrap gap-2">
+                        <Button 
+                          variant={!locationFilter ? "default" : "outline"}
+                          onClick={() => setLocationFilter(null)}
+                          size="sm"
+                        >
+                          All Locations
+                        </Button>
+                        <Button 
+                          variant={locationFilter === "little-rock" ? "default" : "outline"}
+                          onClick={() => setLocationFilter("little-rock")}
+                          size="sm"
+                        >
+                          Little Rock, AR
+                        </Button>
+                        <Button 
+                          variant={locationFilter === "birmingham" ? "default" : "outline"}
+                          onClick={() => setLocationFilter("birmingham")}
+                          size="sm"
+                        >
+                          Birmingham, AL
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -258,17 +315,18 @@ export default function AdminDashboard() {
                 ) : (
                   <div className="border rounded-md">
                     <div className="grid grid-cols-12 bg-muted p-3 text-sm font-medium">
-                      <div className="col-span-5">Name</div>
-                      <div className="col-span-3">Location</div>
+                      <div className="col-span-4">Name</div>
+                      <div className="col-span-2">Location</div>
                       <div className="col-span-2">Status</div>
+                      <div className="col-span-2">Last Contact</div>
                       <div className="col-span-2">Actions</div>
                     </div>
                     {filteredCompanies?.map((company) => (
-                      <div key={company.id} className="grid grid-cols-12 p-3 text-sm border-t">
-                        <div className="col-span-5 flex items-center">
-                          {company.name}
+                      <div key={company.id} className="grid grid-cols-12 p-3 text-sm border-t hover:bg-gray-50">
+                        <div className="col-span-4 flex items-center truncate">
+                          <span className="font-medium truncate">{company.name}</span>
                         </div>
-                        <div className="col-span-3">
+                        <div className="col-span-2 truncate">
                           {company.city}{company.city && company.state ? ', ' : ''}{company.state}
                         </div>
                         <div className="col-span-2">
@@ -280,9 +338,19 @@ export default function AdminDashboard() {
                             {company.status || 'Unknown'}
                           </Badge>
                         </div>
-                        <div className="col-span-2">
-                          <Button variant="ghost" size="sm">
-                            View
+                        <div className="col-span-2 text-gray-500">
+                          {company.lastContactedAt ? 
+                            new Date(company.lastContactedAt).toLocaleDateString() : 
+                            'Never'}
+                        </div>
+                        <div className="col-span-2 flex gap-2">
+                          <Link href={`/${company.slug}`} target="_blank">
+                            <Button variant="ghost" size="sm">
+                              Preview
+                            </Button>
+                          </Link>
+                          <Button variant="outline" size="sm">
+                            Edit
                           </Button>
                         </div>
                       </div>
