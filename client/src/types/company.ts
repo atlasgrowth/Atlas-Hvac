@@ -1,5 +1,5 @@
 export interface Company {
-  id: string;
+  id: number;
   slug: string;
   name: string;
   nameForEmails: string;
@@ -22,6 +22,17 @@ export interface Company {
   photo?: string;
   categories?: string[];
   primaryCategory?: string;
+  status?: 'prospect' | 'active' | 'inactive' | 'archived';
+  assignedUserId?: number;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  notes?: string;
+  lastContactedAt?: string;
+  customDomain?: string;
+  domainSetupComplete?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Service {

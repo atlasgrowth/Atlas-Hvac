@@ -9,11 +9,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function Home() {
   // Set page title
   useEffect(() => {
-    document.title = "HVAC Service Directory";
+    document.title = "HVAC Business Profile Management";
   }, []);
 
   // Fetch all companies
-  const { data: companies, isLoading, error } = useQuery({
+  const { data: companies, isLoading, error } = useQuery<Company[]>({
     queryKey: ["/api/companies"],
   });
 
@@ -22,9 +22,9 @@ export default function Home() {
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold mb-4">HVAC Service Directory</h1>
+            <h1 className="text-4xl font-bold mb-4">HVAC Business Profiles</h1>
             <p className="text-xl text-gray-600">
-              Find professional HVAC contractors in your area
+              Professional HVAC contractors across the United States
             </p>
           </div>
           
@@ -55,9 +55,9 @@ export default function Home() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center p-8">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Error Loading Directory</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Error Loading Business Profiles</h1>
           <p className="text-gray-600 mb-6">
-            We couldn't load the HVAC company directory. Please try again later.
+            We couldn't load the HVAC company profiles. Please try again later.
           </p>
           <Button 
             onClick={() => window.location.reload()}
@@ -74,9 +74,9 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">HVAC Service Directory</h1>
+          <h1 className="text-4xl font-bold mb-4">HVAC Business Profiles</h1>
           <p className="text-xl text-gray-600">
-            Find professional HVAC contractors in your area
+            Professional HVAC contractors across the United States
           </p>
         </div>
         
@@ -112,14 +112,14 @@ export default function Home() {
                         {Array.from({ length: 5 }, (_, i) => (
                           <span 
                             key={i} 
-                            className={`material-icons text-sm ${i < Math.round(company.rating) ? "text-amber-500" : "text-gray-300"}`}
+                            className={`material-icons text-sm ${i < Math.round(company.rating || 0) ? "text-amber-500" : "text-gray-300"}`}
                           >
                             star
                           </span>
                         ))}
                       </div>
                       <span className="ml-1 text-gray-700">
-                        {company.rating.toFixed(1)} ({company.reviewCount} reviews)
+                        {(company.rating || 0).toFixed(1)} ({company.reviewCount || 0} reviews)
                       </span>
                     </div>
                   )}

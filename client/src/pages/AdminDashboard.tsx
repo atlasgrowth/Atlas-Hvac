@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Building2, Users, Calendar, BarChart3, Globe, LogOut } from "lucide-react";
-import { Company } from "@shared/schema";
+import { Company } from "@/types/company";
 
 export default function AdminDashboard() {
   const { user, logoutMutation } = useAuth();
