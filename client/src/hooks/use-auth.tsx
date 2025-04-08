@@ -4,15 +4,6 @@ import { User } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
-type AuthContextType = {
-  user: User | null;
-  isLoading: boolean;
-  error: Error | null;
-  loginMutation: UseMutationResult<Omit<User, "password">, Error, LoginData>;
-  logoutMutation: UseMutationResult<void, Error, void>;
-  registerMutation: UseMutationResult<Omit<User, "password">, Error, RegisterData>;
-};
-
 type LoginData = {
   username: string;
   password: string;
@@ -26,6 +17,16 @@ type RegisterData = {
   lastName?: string;
 };
 
+interface AuthContextType {
+  user: User | null;
+  isLoading: boolean;
+  error: Error | null;
+  loginMutation: UseMutationResult<Omit<User, "password">, Error, LoginData>;
+  logoutMutation: UseMutationResult<void, Error, void>;
+  registerMutation: UseMutationResult<Omit<User, "password">, Error, RegisterData>;
+  refetchUser: () => void;
+}
+
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -34,9 +35,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data: user,
     error,
     isLoading,
+    refetch: refetchUser
   } = useQuery<User | null, Error>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    retry: 1, // Try once more in case of temporary network issues
   });
 
   const loginMutation = useMutation({
@@ -46,12 +49,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/user"], data);
+      // Invalidate all queries to ensure fresh data after login
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/companies"] });
+      refetchUser(); // Force refetch the user to ensure auth state is updated
       toast({
         title: "Login successful",
         description: `Welcome back, ${data.username}!`,
       });
     },
     onError: (error: Error) => {
+      console.error("Login error:", error);
       toast({
         title: "Login failed",
         description: error.message || "Please check your credentials and try again.",
@@ -67,12 +74,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/user"], data);
+      // Invalidate all queries to ensure fresh data after registration
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/companies"] });
+      refetchUser(); // Force refetch the user to ensure auth state is updated
       toast({
         title: "Registration successful",
         description: "Your account has been created and you are now logged in.",
       });
     },
     onError: (error: Error) => {
+      console.error("Registration error:", error);
       toast({
         title: "Registration failed",
         description: error.message || "There was a problem creating your account.",
@@ -101,17 +112,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Create the context value object with the refetchUser function
+  const contextValue: AuthContextType = {
+    user: user || null,
+    isLoading,
+    error,
+    loginMutation,
+    logoutMutation,
+    registerMutation,
+    refetchUser
+  };
+
   return (
-    <AuthContext.Provider
-      value={{
-        user: user || null,
-        isLoading,
-        error,
-        loginMutation,
-        logoutMutation,
-        registerMutation,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
