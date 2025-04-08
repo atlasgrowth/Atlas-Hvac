@@ -9,14 +9,12 @@ import CompanyPage from "@/pages/CompanyPage";
 import Home from "@/pages/Home";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AuthPage from "@/pages/AuthPage";
-import SetupPage from "@/pages/SetupPage";
 
 function Router() {
   return (
     <Switch>
       <ProtectedRoute path="/" component={AdminDashboard} />
       <Route path="/auth" component={AuthPage} />
-      <Route path="/setup" component={SetupPage} />
       <Route path="/directory" component={Home} />
       <Route path="/:slug" component={CompanyPage} />
       <Route component={NotFound} />

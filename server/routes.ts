@@ -24,86 +24,12 @@ const isAdmin = (req: Request, res: Response, next: Function) => {
   res.status(403).json({ message: "Admin privileges required" });
 };
 
-// Subdomain handling middleware
-const handleSubdomains = async (req: Request, res: Response, next: Function) => {
-  const host = req.headers.host || '';
-  
-  // If accessing via custom domain (not replit.app)
-  if (host.includes('atlasgrowth.ai') && !host.startsWith('www.')) {
-    const subdomain = host.split('.')[0];
-    
-    // If it's a root domain request (atlasgrowth.ai without subdomain)
-    if (subdomain === 'atlasgrowth' || subdomain === 'atlasgrowth.ai') {
-      return next(); // Continue to normal routing
-    }
-    
-    try {
-      // Look up company by custom domain or slug
-      const company = await storage.getCompanyBySlug(subdomain);
-      
-      if (company) {
-        // Redirect to the company page with the proper slug
-        return res.redirect(`/${company.slug}`);
-      }
-    } catch (error) {
-      console.error('Error handling subdomain:', error);
-    }
-  }
-  
-  next();
-};
-
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Apply subdomain middleware
-  app.use(handleSubdomains);
   // Set up authentication
   setupAuth(app);
   
   // Skip loading CSV data on app startup to avoid potential startup issues
   // This data is already loaded in the database
-  
-  // Database setup endpoints (for post-deployment)
-  app.post("/api/setup/create-admin", async (req, res) => {
-    try {
-      // Execute the createAdmin script
-      const { exec } = await import('child_process');
-      
-      exec('npx tsx server/createAdmin.ts', (error, stdout, stderr) => {
-        if (error) {
-          console.error('Error creating admin user:', error);
-          console.error(stderr);
-          return res.status(500).json({ error: "Failed to create admin user", details: stderr });
-        }
-        
-        console.log(stdout);
-        res.json({ success: true, message: "Admin user created or already exists", output: stdout });
-      });
-    } catch (error) {
-      console.error("Error creating admin user:", error);
-      res.status(500).json({ error: "Failed to create admin user" });
-    }
-  });
-  
-  app.post("/api/setup/import-data", async (req, res) => {
-    try {
-      // Execute the importCsvData script
-      const { exec } = await import('child_process');
-      
-      exec('npx tsx server/importCsvData.ts', (error, stdout, stderr) => {
-        if (error) {
-          console.error('Error importing company data:', error);
-          console.error(stderr);
-          return res.status(500).json({ error: "Failed to import company data", details: stderr });
-        }
-        
-        console.log(stdout);
-        res.json({ success: true, message: "Company data imported successfully", output: stdout });
-      });
-    } catch (error) {
-      console.error("Error importing company data:", error);
-      res.status(500).json({ error: "Failed to import company data" });
-    }
-  });
 
   // Public API Routes
   
