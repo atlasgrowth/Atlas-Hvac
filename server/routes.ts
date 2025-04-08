@@ -61,6 +61,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Skip loading CSV data on app startup to avoid potential startup issues
   // This data is already loaded in the database
+  
+  // Database setup endpoints (for post-deployment)
+  app.post("/api/setup/create-admin", async (req, res) => {
+    try {
+      // Execute the createAdmin script
+      const { exec } = await import('child_process');
+      
+      exec('npx tsx server/createAdmin.ts', (error, stdout, stderr) => {
+        if (error) {
+          console.error('Error creating admin user:', error);
+          console.error(stderr);
+          return res.status(500).json({ error: "Failed to create admin user", details: stderr });
+        }
+        
+        console.log(stdout);
+        res.json({ success: true, message: "Admin user created or already exists", output: stdout });
+      });
+    } catch (error) {
+      console.error("Error creating admin user:", error);
+      res.status(500).json({ error: "Failed to create admin user" });
+    }
+  });
+  
+  app.post("/api/setup/import-data", async (req, res) => {
+    try {
+      // Execute the importCsvData script
+      const { exec } = await import('child_process');
+      
+      exec('npx tsx server/importCsvData.ts', (error, stdout, stderr) => {
+        if (error) {
+          console.error('Error importing company data:', error);
+          console.error(stderr);
+          return res.status(500).json({ error: "Failed to import company data", details: stderr });
+        }
+        
+        console.log(stdout);
+        res.json({ success: true, message: "Company data imported successfully", output: stdout });
+      });
+    } catch (error) {
+      console.error("Error importing company data:", error);
+      res.status(500).json({ error: "Failed to import company data" });
+    }
+  });
 
   // Public API Routes
   
