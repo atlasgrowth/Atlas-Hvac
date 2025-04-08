@@ -833,8 +833,10 @@ export default function AdminDashboard() {
                                 <Loader2 className="h-5 w-5 animate-spin mx-auto" />
                               ) : (
                                 analytics?.avgSessionDuration ? 
-                                  `${Math.floor(analytics.avgSessionDuration / 60)}m ${Math.floor(analytics.avgSessionDuration % 60)}s` : 
-                                  '0s'
+                                  (analytics.avgSessionDuration > 60 ? 
+                                    `${Math.floor(analytics.avgSessionDuration / 60)}m ${Math.floor(analytics.avgSessionDuration % 60)}s` : 
+                                    `${Math.floor(analytics.avgSessionDuration)}s`) : 
+                                  'N/A'
                               )}
                             </div>
                           </div>
@@ -928,8 +930,7 @@ export default function AdminDashboard() {
                             id: selectedCompany!.id,
                             updateData: {
                               pipelineStage: pipelineStage,
-                              notes: notes,
-                              lastContactedAt: new Date().toISOString()
+                              notes: notes
                             }
                           });
                         }}

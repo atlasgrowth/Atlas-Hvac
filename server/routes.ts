@@ -247,7 +247,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/admin/companies/:id", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
-      const company = await storage.updateCompany(parseInt(id), req.body);
+      // When pipelineStage or notes are updated, also update lastContactedAt
+      const updateData = { ...req.body };
+      if (updateData.pipelineStage || updateData.notes) {
+        updateData.lastContactedAt = new Date();
+      }
+      
+      const company = await storage.updateCompany(parseInt(id), updateData);
       
       if (!company) {
         return res.status(404).json({ error: "Company not found" });
