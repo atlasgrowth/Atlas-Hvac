@@ -24,7 +24,38 @@ const isAdmin = (req: Request, res: Response, next: Function) => {
   res.status(403).json({ message: "Admin privileges required" });
 };
 
+// Subdomain handling middleware
+const handleSubdomains = async (req: Request, res: Response, next: Function) => {
+  const host = req.headers.host || '';
+  
+  // If accessing via custom domain (not replit.app)
+  if (host.includes('atlasgrowth.ai') && !host.startsWith('www.')) {
+    const subdomain = host.split('.')[0];
+    
+    // If it's a root domain request (atlasgrowth.ai without subdomain)
+    if (subdomain === 'atlasgrowth' || subdomain === 'atlasgrowth.ai') {
+      return next(); // Continue to normal routing
+    }
+    
+    try {
+      // Look up company by custom domain or slug
+      const company = await storage.getCompanyBySlug(subdomain);
+      
+      if (company) {
+        // Redirect to the company page with the proper slug
+        return res.redirect(`/${company.slug}`);
+      }
+    } catch (error) {
+      console.error('Error handling subdomain:', error);
+    }
+  }
+  
+  next();
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Apply subdomain middleware
+  app.use(handleSubdomains);
   // Set up authentication
   setupAuth(app);
   
