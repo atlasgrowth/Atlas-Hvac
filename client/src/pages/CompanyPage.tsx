@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRoute } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Company, Service, Review } from "@/types/company";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
@@ -13,23 +13,97 @@ import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
 import ChatWidget from "@/components/ChatWidget";
 import { Skeleton } from "@/components/ui/skeleton";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function CompanyPage() {
   const [, params] = useRoute("/:slug");
   const slug = params?.slug || "";
-
+  const visitorSessionId = useRef<number | null>(null);
+  const startTime = useRef<Date>(new Date());
+  
   // Fetch company data based on slug
-  const { data: company, isLoading, error } = useQuery({
+  const { data: company, isLoading, error } = useQuery<Company>({
     queryKey: [`/api/companies/${slug}`],
     enabled: !!slug,
   });
 
+  // Record page visit mutation
+  const recordVisitMutation = useMutation({
+    mutationFn: async (data: { companyId: number, path: string }) => {
+      const res = await apiRequest("POST", "/api/page-visit", data);
+      return res.json();
+    }
+  });
+
+  // Start visitor session mutation
+  const startSessionMutation = useMutation({
+    mutationFn: async (data: { companyId: number }) => {
+      const res = await apiRequest("POST", "/api/visitor-session/start", data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      visitorSessionId.current = data.id;
+    }
+  });
+
+  // End visitor session mutation
+  const endSessionMutation = useMutation({
+    mutationFn: async (data: { sessionId: number, duration: number }) => {
+      const res = await apiRequest("POST", "/api/visitor-session/end", data);
+      return res.json();
+    }
+  });
+
+  // Update company pipeline stage mutation
+  const updatePipelineStageMutation = useMutation({
+    mutationFn: async (data: { companyId: number, stageUpdate: { pipelineStage: string } }) => {
+      const res = await apiRequest("PATCH", `/api/companies/${data.companyId}`, data.stageUpdate);
+      return res.json();
+    }
+  });
+
   useEffect(() => {
     // Set page title when company data is loaded
-    if (company?.name) {
-      document.title = company.name;
+    if (company) {
+      // Cast company to the proper type to avoid TypeScript errors
+      const companyData = company as Company;
+      
+      if (companyData.name) {
+        document.title = companyData.name;
+        
+        // Record page visit
+        recordVisitMutation.mutate({
+          companyId: companyData.id,
+          path: window.location.pathname
+        });
+        
+        // Start visitor session
+        startSessionMutation.mutate({
+          companyId: companyData.id
+        });
+        
+        // Update pipeline stage to "website_viewed" if currently in "website_sent" stage
+        if (companyData.pipelineStage === "website_sent") {
+          updatePipelineStageMutation.mutate({
+            companyId: companyData.id,
+            stageUpdate: { pipelineStage: "website_viewed" }
+          });
+        }
+      }
     }
-  }, [company]);
+    
+    // End session when user leaves the page
+    return () => {
+      if (visitorSessionId.current && company) {
+        const companyData = company as Company;
+        const duration = Math.round((new Date().getTime() - startTime.current.getTime()) / 1000); // duration in seconds
+        endSessionMutation.mutate({
+          sessionId: visitorSessionId.current,
+          duration: duration
+        });
+      }
+    };
+  }, [company, recordVisitMutation, startSessionMutation, updatePipelineStageMutation, endSessionMutation]);
 
   // Mock services data - in a real implementation this would come from the API
   const services: Service[] = [
@@ -100,18 +174,21 @@ export default function CompanyPage() {
     );
   }
 
+  // Cast company to the proper type to avoid TypeScript errors
+  const typedCompany: Company = company as Company;
+  
   return (
     <>
-      <Header company={company} />
-      <Hero company={company} />
-      <About company={company} />
+      <Header company={typedCompany} />
+      <Hero company={typedCompany} />
+      <About company={typedCompany} />
       <Services services={services} />
       <SpringPromotion />
-      <Reviews company={company} />
-      <Location company={company} />
-      <Contact company={company} />
-      <Footer company={company} />
-      <ChatWidget company={company} />
+      <Reviews company={typedCompany} />
+      <Location company={typedCompany} />
+      <Contact company={typedCompany} />
+      <Footer company={typedCompany} />
+      <ChatWidget company={typedCompany} />
     </>
   );
 }

@@ -125,46 +125,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Record a page visit
-  app.post("/api/analytics/page-visit", async (req, res) => {
+  app.post("/api/page-visit", async (req, res) => {
     try {
-      const visitData = insertPageVisitSchema.parse(req.body);
+      const { companyId, path } = req.body;
+      
+      // Generate a random visitor ID (in production, this would be a cookie)
+      const visitorId = Math.random().toString(36).substring(2, 15);
+      
+      // Create visit data
+      const visitData = {
+        companyId: parseInt(companyId),
+        visitorId,
+        page: path,
+        referrer: req.headers.referer || null,
+        userAgent: req.headers['user-agent'] || null,
+        ip: req.ip || null,
+        visitedAt: new Date()
+      };
+      
       const pageVisit = await storage.recordPageVisit(visitData);
       res.status(201).json(pageVisit);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Invalid data format", details: error.errors });
-      }
       console.error("Error recording page visit:", error);
       res.status(500).json({ error: "Failed to record page visit" });
     }
   });
 
   // Start a visitor session
-  app.post("/api/analytics/session-start", async (req, res) => {
+  app.post("/api/visitor-session/start", async (req, res) => {
     try {
-      const sessionData = insertVisitorSessionSchema.parse(req.body);
+      const { companyId } = req.body;
+      
+      // Generate a random visitor ID (in production, this would be from a cookie)
+      const visitorId = Math.random().toString(36).substring(2, 15);
+      
+      // Create session data
+      const sessionData = {
+        companyId: parseInt(companyId),
+        visitorId,
+        userAgent: req.headers['user-agent'] || null,
+        ip: req.ip || null,
+        startedAt: new Date()
+      };
+      
       const session = await storage.startVisitorSession(sessionData);
       res.status(201).json(session);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Invalid data format", details: error.errors });
-      }
       console.error("Error starting visitor session:", error);
       res.status(500).json({ error: "Failed to start visitor session" });
     }
   });
 
   // End a visitor session
-  app.post("/api/analytics/session-end/:id", async (req, res) => {
+  app.post("/api/visitor-session/end", async (req, res) => {
     try {
-      const { id } = req.params;
-      const { duration } = req.body;
+      const { sessionId, duration } = req.body;
       
       if (typeof duration !== 'number') {
         return res.status(400).json({ error: "Duration must be a number" });
       }
       
-      const session = await storage.endVisitorSession(parseInt(id), duration);
+      const session = await storage.endVisitorSession(parseInt(sessionId), duration);
       
       if (!session) {
         return res.status(404).json({ error: "Session not found" });
