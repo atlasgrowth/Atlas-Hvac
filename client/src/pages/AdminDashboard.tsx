@@ -42,6 +42,7 @@ import { Company } from "@/types/company";
 export default function AdminDashboard() {
   const { user, logoutMutation } = useAuth();
   const [activeTab, setActiveTab] = useState<string>("dashboard");
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   
   const { data: companies, isLoading: isLoadingCompanies } = useQuery<Company[]>({
     queryKey: ["/api/admin/companies"],
@@ -432,20 +433,40 @@ export default function AdminDashboard() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="pb-1">
-                <div className="flex flex-col gap-4 mb-6">
-                  <div className="flex gap-4">
-                    <div className="flex-1">
-                      <Label htmlFor="pipeline-search" className="sr-only">Search</Label>
-                      <Input
-                        id="pipeline-search"
-                        placeholder="Search pipeline..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full"
-                      />
-                    </div>
-                    
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                  {/* Search */}
+                  <div className="lg:col-span-2">
+                    <Label htmlFor="pipeline-search" className="text-sm mb-2 block">Search leads</Label>
+                    <Input
+                      id="pipeline-search"
+                      placeholder="Search by name, city, state..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  {/* Pipeline Stage Filter */}
+                  <div>
+                    <Label className="text-sm mb-2 block">Pipeline Stage</Label>
+                    <select 
+                      className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      onChange={(e) => console.log(e.target.value)}
+                      defaultValue="all"
+                    >
+                      <option value="all">All Stages</option>
+                      <option value="new_lead">New Lead</option>
+                      <option value="contacted">Contacted</option>
+                      <option value="meeting_scheduled">Meeting Scheduled</option>
+                      <option value="proposal_sent">Proposal Sent</option>
+                      <option value="negotiation">Negotiation</option>
+                    </select>
+                  </div>
+                  
+                  {/* Location Filter */}
+                  <div className="lg:col-span-2">
+                    <Label className="text-sm mb-2 block">Location</Label>
                     <div className="flex flex-wrap gap-2">
                       <Button 
                         variant={!locationFilter ? "default" : "outline"}
@@ -459,14 +480,14 @@ export default function AdminDashboard() {
                         onClick={() => setLocationFilter("little-rock")}
                         size="sm"
                       >
-                        Little Rock
+                        Little Rock, AR
                       </Button>
                       <Button 
                         variant={locationFilter === "birmingham" ? "default" : "outline"}
                         onClick={() => setLocationFilter("birmingham")}
                         size="sm"
                       >
-                        Birmingham
+                        Birmingham, AL
                       </Button>
                     </div>
                   </div>
@@ -476,184 +497,285 @@ export default function AdminDashboard() {
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
+                ) : filteredProspects.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p>No leads found matching your filters.</p>
+                  </div>
                 ) : (
-                  <div className="overflow-auto pb-6">
-                    <div className="flex gap-4 min-w-max">
-                      {/* Pipeline Stage: Contacted */}
-                      <div className="w-80 shrink-0">
-                        <div className="bg-gray-100 px-3 py-2 rounded-t-md">
-                          <h3 className="font-medium flex items-center">
-                            <Phone className="h-4 w-4 mr-2 text-blue-600" />
-                            Contacted <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-100">3</Badge>
-                          </h3>
-                        </div>
-                        <div className="mt-2 space-y-3">
-                          {filteredProspects.slice(0, 3).map((company) => (
-                            <Card key={`contacted-${company.id}`} className="overflow-hidden shadow-sm border-l-[3px] border-l-blue-500">
-                              <CardHeader className="p-3 pb-0">
-                                <CardTitle className="text-sm font-medium">{company.name}</CardTitle>
-                                <CardDescription className="text-xs flex items-center">
+                  <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Vertical Pipeline View */}
+                    <div className="lg:w-1/3">
+                      <h3 className="text-sm font-medium mb-3">Pipeline Companies</h3>
+                      <div className="space-y-3">
+                        {filteredProspects.map((company) => (
+                          <Card 
+                            key={company.id} 
+                            className={`cursor-pointer hover:shadow-md transition-shadow ${
+                              selectedCompany?.id === company.id ? 'border-primary' : ''
+                            }`}
+                            onClick={() => setSelectedCompany(company)}
+                          >
+                            <CardHeader className="p-4 pb-2">
+                              <div className="flex justify-between items-start">
+                                <CardTitle className="text-base">{company.name}</CardTitle>
+                                <Badge 
+                                  className={company.pipelineStage === 'new_lead' 
+                                    ? "bg-blue-100 text-blue-800" 
+                                    : company.pipelineStage === 'contacted' 
+                                    ? "bg-yellow-100 text-yellow-800" 
+                                    : "bg-green-100 text-green-800"
+                                  }
+                                >
+                                  {company.pipelineStage === 'new_lead' 
+                                    ? 'New Lead' 
+                                    : company.pipelineStage === 'contacted'
+                                    ? 'Contacted'
+                                    : 'Meeting Scheduled'
+                                  }
+                                </Badge>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="p-4 pt-2 space-y-2">
+                              <div className="flex items-center text-sm text-muted-foreground">
+                                <MapPin className="h-3 w-3 mr-2" />
+                                {company.city}, {company.state}
+                              </div>
+                              
+                              {company.phone && (
+                                <div className="flex items-center text-sm">
+                                  <Phone className="h-3 w-3 mr-2 text-muted-foreground" />
+                                  <span>{company.phone}</span>
+                                </div>
+                              )}
+                              
+                              {company.site && (
+                                <div className="flex items-center text-sm">
+                                  <ExternalLink className="h-3 w-3 mr-2 text-muted-foreground" />
+                                  <a
+                                    href={company.site}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-500 hover:underline truncate"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {company.site}
+                                  </a>
+                                </div>
+                              )}
+
+                              {company.lastContactedAt && (
+                                <div className="flex items-center text-xs mt-2 text-muted-foreground">
+                                  <Calendar className="h-3 w-3 mr-1" />
+                                  Last contact: {new Date(company.lastContactedAt).toLocaleDateString()}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Selected Company Details */}
+                    <div className="lg:w-2/3">
+                      {selectedCompany ? (
+                        <Card>
+                          <CardHeader className="pb-3">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <CardTitle>{selectedCompany.name}</CardTitle>
+                                <CardDescription className="flex items-center mt-1">
                                   <MapPin className="h-3 w-3 mr-1" />
-                                  {company.city}{company.city && company.state ? ', ' : ''}{company.state}
+                                  {selectedCompany.city}, {selectedCompany.state}
                                 </CardDescription>
-                              </CardHeader>
-                              <CardContent className="p-3 pt-2">
-                                <div className="text-xs space-y-1">
-                                  <div className="flex items-center">
-                                    <Calendar className="h-3 w-3 mr-1 text-gray-500" />
-                                    <span className="text-gray-500">Call scheduled: Apr 09</span>
-                                  </div>
-                                  
-                                  <div className="flex items-center justify-between mt-3">
-                                    <Badge variant="outline" className="text-xs">New</Badge>
-                                    <Button variant="ghost" size="sm" className="h-6 text-xs">
-                                      View
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge 
+                                  className={selectedCompany.pipelineStage === 'new_lead' 
+                                    ? "bg-blue-100 text-blue-800" 
+                                    : selectedCompany.pipelineStage === 'contacted' 
+                                    ? "bg-yellow-100 text-yellow-800" 
+                                    : "bg-green-100 text-green-800"
+                                  }
+                                >
+                                  {selectedCompany.pipelineStage === 'new_lead' 
+                                    ? 'New Lead' 
+                                    : selectedCompany.pipelineStage === 'contacted'
+                                    ? 'Contacted'
+                                    : 'Meeting Scheduled'
+                                  }
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              {/* Company Info */}
+                              <div className="space-y-3">
+                                <h3 className="text-sm font-medium">Company Information</h3>
+                                <div className="space-y-2">
+                                  {selectedCompany.phone && (
+                                    <div className="flex items-center text-sm">
+                                      <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
+                                      <span>{selectedCompany.phone}</span>
+                                    </div>
+                                  )}
+                                  {selectedCompany.site && (
+                                    <div className="flex items-center text-sm">
+                                      <ExternalLink className="h-4 w-4 mr-2 text-muted-foreground" />
+                                      <a
+                                        href={selectedCompany.site}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-500 hover:underline"
+                                      >
+                                        {selectedCompany.site}
+                                      </a>
+                                    </div>
+                                  )}
+                                  {selectedCompany.rating && (
+                                    <div className="flex items-center text-sm">
+                                      <div className="flex mr-2">
+                                        {Array.from({ length: 5 }).map((_, i) => (
+                                          <div
+                                            key={i}
+                                            className={`h-4 w-4 ${
+                                              i < Math.floor(selectedCompany.rating || 0)
+                                                ? "text-yellow-400"
+                                                : "text-gray-300"
+                                            }`}
+                                          >
+                                            ★
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <span>
+                                        {selectedCompany.rating} ({selectedCompany.reviewCount || 0} reviews)
+                                      </span>
+                                    </div>
+                                  )}
+                                  {selectedCompany.employees && (
+                                    <div className="flex items-center text-sm">
+                                      <Users className="h-4 w-4 mr-2 text-muted-foreground" />
+                                      <span>{selectedCompany.employees} employees</span>
+                                    </div>
+                                  )}
+                                  {selectedCompany.industry && (
+                                    <div className="flex items-center text-sm">
+                                      <Building2 className="h-4 w-4 mr-2 text-muted-foreground" />
+                                      <span>{selectedCompany.industry}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* Contact Info */}
+                              <div className="space-y-3">
+                                <h3 className="text-sm font-medium">Contact Information</h3>
+                                <div className="space-y-2">
+                                  {selectedCompany.contactName && (
+                                    <div className="flex items-center text-sm">
+                                      <UserPlus className="h-4 w-4 mr-2 text-muted-foreground" />
+                                      <span>{selectedCompany.contactName}</span>
+                                    </div>
+                                  )}
+                                  {selectedCompany.contactEmail && (
+                                    <div className="flex items-center text-sm">
+                                      <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
+                                      <span>{selectedCompany.contactEmail}</span>
+                                    </div>
+                                  )}
+                                  {selectedCompany.contactPhone && (
+                                    <div className="flex items-center text-sm">
+                                      <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
+                                      <span>{selectedCompany.contactPhone}</span>
+                                    </div>
+                                  )}
+                                  {selectedCompany.lastContactedAt && (
+                                    <div className="flex items-center text-sm">
+                                      <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                                      <span>Last contacted: {new Date(selectedCompany.lastContactedAt).toLocaleDateString()}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Pipeline Stage Management */}
+                            <div className="pt-4 border-t">
+                              <h3 className="text-sm font-medium mb-3">Pipeline Management</h3>
+                              <div className="space-y-3">
+                                <div>
+                                  <Label className="text-xs mb-1 block">Move to Stage</Label>
+                                  <div className="flex flex-wrap gap-2">
+                                    <Button variant="outline" size="sm">
+                                      New Lead
+                                    </Button>
+                                    <Button variant="outline" size="sm">
+                                      Contacted
+                                    </Button>
+                                    <Button variant="outline" size="sm">
+                                      Meeting Scheduled
+                                    </Button>
+                                    <Button variant="outline" size="sm">
+                                      Proposal Sent
+                                    </Button>
+                                    <Button variant="outline" size="sm">
+                                      Won
+                                    </Button>
+                                    <Button variant="outline" size="sm">
+                                      Lost
                                     </Button>
                                   </div>
                                 </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                          <Button variant="ghost" size="sm" className="w-full mt-2">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Company
-                          </Button>
+                              </div>
+                            </div>
+                            
+                            {/* Notes */}
+                            <div className="pt-4 border-t">
+                              <div className="flex justify-between items-center mb-3">
+                                <h3 className="text-sm font-medium">Notes & History</h3>
+                                <Button variant="ghost" size="sm">
+                                  <Plus className="h-4 w-4 mr-1" /> Add Note
+                                </Button>
+                              </div>
+                              <textarea
+                                className="min-h-[100px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                placeholder="Add notes about this company..."
+                                defaultValue={selectedCompany.notes || ""}
+                              />
+                            </div>
+                            
+                            {/* Action Buttons */}
+                            <div className="flex justify-between pt-3 border-t">
+                              <div>
+                                <Button variant="outline" size="sm" className="mr-2">
+                                  <Phone className="h-4 w-4 mr-2" />
+                                  Log Call
+                                </Button>
+                                <Button variant="outline" size="sm">
+                                  <Calendar className="h-4 w-4 mr-2" />
+                                  Schedule Meeting
+                                </Button>
+                              </div>
+                              <div>
+                                <Button variant="default" size="sm">
+                                  Save Changes
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ) : (
+                        <div className="h-full flex items-center justify-center border rounded-lg bg-muted/10 p-12">
+                          <div className="text-center space-y-3">
+                            <Building2 className="h-12 w-12 mx-auto text-muted-foreground" />
+                            <h3 className="text-lg font-medium">Select a company</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Click on a company card from the pipeline to view details and manage the lead.
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      
-                      {/* Pipeline Stage: Meeting Scheduled */}
-                      <div className="w-80 shrink-0">
-                        <div className="bg-gray-100 px-3 py-2 rounded-t-md">
-                          <h3 className="font-medium flex items-center">
-                            <Calendar className="h-4 w-4 mr-2 text-purple-600" />
-                            Meeting Scheduled <Badge className="ml-2 bg-purple-100 text-purple-800 hover:bg-purple-100">2</Badge>
-                          </h3>
-                        </div>
-                        <div className="mt-2 space-y-3">
-                          {filteredProspects.slice(1, 3).map((company) => (
-                            <Card key={`meeting-${company.id}`} className="overflow-hidden shadow-sm border-l-[3px] border-l-purple-500">
-                              <CardHeader className="p-3 pb-0">
-                                <CardTitle className="text-sm font-medium">{company.name}</CardTitle>
-                                <CardDescription className="text-xs flex items-center">
-                                  <MapPin className="h-3 w-3 mr-1" />
-                                  {company.city}{company.city && company.state ? ', ' : ''}{company.state}
-                                </CardDescription>
-                              </CardHeader>
-                              <CardContent className="p-3 pt-2">
-                                <div className="text-xs space-y-1">
-                                  <div className="flex items-center">
-                                    <Calendar className="h-3 w-3 mr-1 text-gray-500" />
-                                    <span className="text-gray-500">Meeting: Apr 12 @ 2:00 PM</span>
-                                  </div>
-                                  
-                                  <div className="flex items-center justify-between mt-3">
-                                    <Badge variant="outline" className="text-xs">Priority</Badge>
-                                    <Button variant="ghost" size="sm" className="h-6 text-xs">
-                                      View
-                                    </Button>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                          <Button variant="ghost" size="sm" className="w-full mt-2">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Company
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      {/* Pipeline Stage: Proposal Sent */}
-                      <div className="w-80 shrink-0">
-                        <div className="bg-gray-100 px-3 py-2 rounded-t-md">
-                          <h3 className="font-medium flex items-center">
-                            <FileText className="h-4 w-4 mr-2 text-amber-600" />
-                            Proposal Sent <Badge className="ml-2 bg-amber-100 text-amber-800 hover:bg-amber-100">2</Badge>
-                          </h3>
-                        </div>
-                        <div className="mt-2 space-y-3">
-                          {filteredProspects.slice(2, 4).map((company) => (
-                            <Card key={`proposal-${company.id}`} className="overflow-hidden shadow-sm border-l-[3px] border-l-amber-500">
-                              <CardHeader className="p-3 pb-0">
-                                <CardTitle className="text-sm font-medium">{company.name}</CardTitle>
-                                <CardDescription className="text-xs flex items-center">
-                                  <MapPin className="h-3 w-3 mr-1" />
-                                  {company.city}{company.city && company.state ? ', ' : ''}{company.state}
-                                </CardDescription>
-                              </CardHeader>
-                              <CardContent className="p-3 pt-2">
-                                <div className="text-xs space-y-1">
-                                  <div className="flex items-center">
-                                    <FileText className="h-3 w-3 mr-1 text-gray-500" />
-                                    <span className="text-gray-500">Proposal sent: Apr 05</span>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <DollarSign className="h-3 w-3 mr-1 text-gray-500" />
-                                    <span className="text-gray-500">Value: $4,500</span>
-                                  </div>
-                                  
-                                  <div className="flex items-center justify-between mt-3">
-                                    <Badge variant="outline" className="text-xs">Follow up</Badge>
-                                    <Button variant="ghost" size="sm" className="h-6 text-xs">
-                                      View
-                                    </Button>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                          <Button variant="ghost" size="sm" className="w-full mt-2">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Company
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      {/* Pipeline Stage: Negotiation */}
-                      <div className="w-80 shrink-0">
-                        <div className="bg-gray-100 px-3 py-2 rounded-t-md">
-                          <h3 className="font-medium flex items-center">
-                            <MessageSquare className="h-4 w-4 mr-2 text-green-600" />
-                            Negotiation <Badge className="ml-2 bg-green-100 text-green-800 hover:bg-green-100">1</Badge>
-                          </h3>
-                        </div>
-                        <div className="mt-2 space-y-3">
-                          {filteredProspects.slice(0, 1).map((company) => (
-                            <Card key={`negotiation-${company.id}`} className="overflow-hidden shadow-sm border-l-[3px] border-l-green-500">
-                              <CardHeader className="p-3 pb-0">
-                                <CardTitle className="text-sm font-medium">{company.name}</CardTitle>
-                                <CardDescription className="text-xs flex items-center">
-                                  <MapPin className="h-3 w-3 mr-1" />
-                                  {company.city}{company.city && company.state ? ', ' : ''}{company.state}
-                                </CardDescription>
-                              </CardHeader>
-                              <CardContent className="p-3 pt-2">
-                                <div className="text-xs space-y-1">
-                                  <div className="flex items-center">
-                                    <MessageSquare className="h-3 w-3 mr-1 text-gray-500" />
-                                    <span className="text-gray-500">Last contact: Apr 06</span>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <DollarSign className="h-3 w-3 mr-1 text-gray-500" />
-                                    <span className="text-gray-500">Value: $7,800</span>
-                                  </div>
-                                  
-                                  <div className="flex items-center justify-between mt-3">
-                                    <Badge variant="outline" className="text-xs">Hot lead</Badge>
-                                    <Button variant="ghost" size="sm" className="h-6 text-xs">
-                                      View
-                                    </Button>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                          <Button variant="ghost" size="sm" className="w-full mt-2">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Company
-                          </Button>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 )}

@@ -19,7 +19,7 @@ import {
   type InsertVisitorSession
 } from "@shared/schema";
 import { eq, desc, and } from "drizzle-orm";
-import { db } from "./db";
+import { db, client } from "./db";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 
@@ -92,7 +92,51 @@ export class DatabaseStorage implements IStorage {
   
   // Company methods
   async getAllCompanies(): Promise<Company[]> {
-    return await db.select().from(companies).orderBy(companies.name);
+    // Note: This is a simplified implementation until the database is migrated
+    // with the new leadStatus and pipelineStage columns
+    const results = await db.select({
+      id: companies.id,
+      name: companies.name,
+      slug: companies.slug,
+      nameForEmails: companies.nameForEmails,
+      site: companies.site,
+      address: companies.address,
+      city: companies.city,
+      state: companies.state,
+      country: companies.country,
+      description: companies.description,
+      isPublic: companies.isPublic,
+      industry: companies.industry,
+      phone: companies.phone,
+      employees: companies.employees,
+      rating: companies.rating,
+      reviewCount: companies.reviewCount,
+      reviewsLink: companies.reviewsLink,
+      latitude: companies.latitude,
+      longitude: companies.longitude,
+      timezone: companies.timezone,
+      photo: companies.photo,
+      categories: companies.categories,
+      primaryCategory: companies.primaryCategory,
+      status: companies.status,
+      assignedUserId: companies.assignedUserId,
+      contactName: companies.contactName,
+      contactEmail: companies.contactEmail,
+      contactPhone: companies.contactPhone,
+      notes: companies.notes,
+      lastContactedAt: companies.lastContactedAt,
+      customDomain: companies.customDomain,
+      domainSetupComplete: companies.domainSetupComplete,
+      createdAt: companies.createdAt,
+      updatedAt: companies.updatedAt
+    }).from(companies).orderBy(companies.name);
+    
+    // Add the new fields with default values
+    return results.map(company => ({
+      ...company,
+      leadStatus: 'new',
+      pipelineStage: 'new_lead'
+    }));
   }
   
   async getCompany(id: number): Promise<Company | undefined> {
