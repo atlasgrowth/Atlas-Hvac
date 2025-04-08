@@ -57,7 +57,7 @@ export async function parseCsvData(filePath: string): Promise<InsertCompany[]> {
       phone: record.phone || "",
       employees: record["site.company_insights.employees"] || "",
       rating: parseFloat(record.rating) || 0,
-      reviewCount: parseInt(record.review_count) || 0,
+      reviewCount: parseInt(record.reviews) || 0,
       reviewsLink: record.reviews_link || "",
       latitude: parseFloat(record.latitude) || undefined,
       longitude: parseFloat(record.longitude) || undefined,
@@ -67,6 +67,11 @@ export async function parseCsvData(filePath: string): Promise<InsertCompany[]> {
         ? record.categories.split(",").map((c: string) => c.trim()) 
         : ["HVAC contractor"],
       primaryCategory: record.primary_category || "HVAC contractor",
+      
+      // Required status fields with defaults
+      status: 'prospect',
+      leadStatus: 'new',
+      pipelineStage: 'new_lead',
     };
     
     return company;

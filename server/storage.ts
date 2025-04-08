@@ -135,7 +135,10 @@ export class DatabaseStorage implements IStorage {
     return results.map(company => ({
       ...company,
       leadStatus: 'new',
-      pipelineStage: 'new_lead'
+      pipelineStage: 'new_lead',
+      pipelineValue: 0,
+      pipelineProbability: 0,
+      nextFollowUpDate: null
     }));
   }
   

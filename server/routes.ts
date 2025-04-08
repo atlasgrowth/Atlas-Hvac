@@ -221,6 +221,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to update company" });
     }
   });
+  
+  // Update company notes
+  app.patch("/api/admin/companies/:id/notes", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { notes } = req.body;
+      
+      if (typeof notes !== 'string') {
+        return res.status(400).json({ error: "Notes must be a string" });
+      }
+      
+      const company = await storage.updateCompany(parseInt(id), { 
+        notes,
+        lastContactedAt: new Date() // Update last contacted when notes are saved
+      });
+      
+      if (!company) {
+        return res.status(404).json({ error: "Company not found" });
+      }
+      
+      res.json(company);
+    } catch (error) {
+      console.error("Error updating company notes:", error);
+      res.status(500).json({ error: "Failed to update company notes" });
+    }
+  });
+  
+  // Update company pipeline stage
+  app.patch("/api/admin/companies/:id/pipeline-stage", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { pipelineStage } = req.body;
+      
+      if (typeof pipelineStage !== 'string') {
+        return res.status(400).json({ error: "Pipeline stage must be a string" });
+      }
+      
+      // Update lead status based on pipeline stage
+      let leadStatus = 'new';
+      
+      // Cast pipeline stage to allowed enum value
+      const validPipelineStage = pipelineStage as 'new_lead' | 'contacted' | 'meeting_scheduled' | 'proposal_sent' | 'negotiation' | 'won' | 'lost';
+      
+      if (['contacted', 'meeting_scheduled', 'proposal_sent', 'negotiation'].includes(validPipelineStage)) {
+        leadStatus = 'in_pipeline';
+      } else if (validPipelineStage === 'won') {
+        leadStatus = 'converted';
+      } else if (validPipelineStage === 'lost') {
+        leadStatus = 'lost';
+      }
+      
+      const company = await storage.updateCompany(parseInt(id), { 
+        pipelineStage: validPipelineStage,
+        leadStatus: leadStatus as 'new' | 'in_pipeline' | 'converted' | 'lost',
+        lastContactedAt: new Date() // Update last contacted when pipeline stage changes
+      });
+      
+      if (!company) {
+        return res.status(404).json({ error: "Company not found" });
+      }
+      
+      res.json(company);
+    } catch (error) {
+      console.error("Error updating pipeline stage:", error);
+      res.status(500).json({ error: "Failed to update pipeline stage" });
+    }
+  });
 
   // Create a service for a company
   app.post("/api/admin/companies/:id/services", isAuthenticated, async (req, res) => {
