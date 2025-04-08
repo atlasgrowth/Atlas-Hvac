@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -78,6 +78,21 @@ export default function AdminDashboard() {
     enabled: !!user,
   });
   
+  // Query for company analytics (only enabled when a company is selected)
+  const { 
+    data: analytics, 
+    isLoading: isLoadingAnalytics 
+  } = useQuery({
+    queryKey: ["/api/admin/companies", selectedCompany?.id, "analytics"],
+    queryFn: async () => {
+      if (!selectedCompany?.id) return null;
+      const res = await fetch(`/api/admin/companies/${selectedCompany.id}/analytics`);
+      if (!res.ok) throw new Error("Failed to fetch analytics");
+      return res.json();
+    },
+    enabled: !!selectedCompany && !!user,
+  });
+  
   // Mutations for updating company
   const updateCompanyMutation = useMutation({
     mutationFn: async (data: { id: number; updateData: Partial<Company> }) => {
@@ -135,6 +150,14 @@ export default function AdminDashboard() {
 
   const matchesStatus = (company: Company) => 
     !statusFilter || company.status === statusFilter;
+    
+  // Effect to update notes and pipeline stage when company is selected
+  useEffect(() => {
+    if (selectedCompany) {
+      setNotes(selectedCompany.notes || '');
+      setPipelineStage(selectedCompany.pipelineStage || 'new_lead');
+    }
+  }, [selectedCompany]);
 
   // Get filtered prospect companies
   const filteredProspects = companies?.filter(company => 
@@ -779,13 +802,25 @@ export default function AdminDashboard() {
                   <div className="pt-4 border-t">
                     <div className="flex justify-between items-center mb-3">
                       <h3 className="text-sm font-medium">Site Activity</h3>
+                      {isLoadingAnalytics && (
+                        <div className="text-xs text-muted-foreground flex items-center">
+                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                          Loading analytics...
+                        </div>
+                      )}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                       <Card className="bg-gray-50">
                         <CardContent className="p-4">
                           <div className="flex flex-col items-center">
                             <h4 className="text-xs text-muted-foreground mb-1">Total Page Views</h4>
-                            <div className="text-2xl font-semibold">12</div>
+                            <div className="text-2xl font-semibold">
+                              {isLoadingAnalytics ? (
+                                <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                              ) : (
+                                analytics?.totalPageVisits || 0
+                              )}
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -793,44 +828,69 @@ export default function AdminDashboard() {
                         <CardContent className="p-4">
                           <div className="flex flex-col items-center">
                             <h4 className="text-xs text-muted-foreground mb-1">Avg. Time on Site</h4>
-                            <div className="text-2xl font-semibold">1:45</div>
+                            <div className="text-2xl font-semibold">
+                              {isLoadingAnalytics ? (
+                                <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                              ) : (
+                                analytics?.avgSessionDuration ? 
+                                  `${Math.floor(analytics.avgSessionDuration / 60)}m ${Math.floor(analytics.avgSessionDuration % 60)}s` : 
+                                  '0s'
+                              )}
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
                       <Card className="bg-gray-50">
                         <CardContent className="p-4">
                           <div className="flex flex-col items-center">
-                            <h4 className="text-xs text-muted-foreground mb-1">Last Visit</h4>
-                            <div className="text-2xl font-semibold">Today</div>
+                            <h4 className="text-xs text-muted-foreground mb-1">Total Sessions</h4>
+                            <div className="text-2xl font-semibold">
+                              {isLoadingAnalytics ? (
+                                <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                              ) : (
+                                analytics?.totalSessions || 0
+                              )}
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
                     </div>
                     <div className="border rounded-md mb-4">
                       <div className="p-3 bg-muted text-sm font-medium">Recent Visits</div>
-                      <div className="divide-y">
-                        <div className="p-3 text-sm">
-                          <div className="flex justify-between">
-                            <div className="font-medium">Home Page</div>
-                            <div className="text-muted-foreground">10:23 AM, Today</div>
-                          </div>
-                          <div className="text-xs text-muted-foreground">Duration: 2m 15s</div>
+                      {isLoadingAnalytics ? (
+                        <div className="p-8 flex justify-center">
+                          <Loader2 className="h-6 w-6 animate-spin" />
                         </div>
-                        <div className="p-3 text-sm">
-                          <div className="flex justify-between">
-                            <div className="font-medium">Services Page</div>
-                            <div className="text-muted-foreground">Yesterday</div>
-                          </div>
-                          <div className="text-xs text-muted-foreground">Duration: 1m 47s</div>
+                      ) : analytics?.recentPageVisits?.length ? (
+                        <div className="divide-y">
+                          {analytics.recentPageVisits.map((visit: { 
+                            page: string; 
+                            visitedAt: string; 
+                            visitorId: string;
+                            id: number;
+                            companyId: number;
+                            referrer?: string | null;
+                            userAgent?: string | null;
+                            ip?: string | null;
+                          }, index: number) => (
+                            <div key={index} className="p-3 text-sm">
+                              <div className="flex justify-between">
+                                <div className="font-medium">{visit.page || "Unknown Page"}</div>
+                                <div className="text-muted-foreground">
+                                  {new Date(visit.visitedAt).toLocaleString()}
+                                </div>
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Visitor: {visit.visitorId.substring(0, 8)}...
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <div className="p-3 text-sm">
-                          <div className="flex justify-between">
-                            <div className="font-medium">Contact Page</div>
-                            <div className="text-muted-foreground">Apr 6, 2025</div>
-                          </div>
-                          <div className="text-xs text-muted-foreground">Duration: 38s</div>
+                      ) : (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          No page visits recorded yet
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                   
