@@ -205,8 +205,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update a company
+  // Update a company (full update)
   app.put("/api/admin/companies/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const company = await storage.updateCompany(parseInt(id), req.body);
+      
+      if (!company) {
+        return res.status(404).json({ error: "Company not found" });
+      }
+      
+      res.json(company);
+    } catch (error) {
+      console.error("Error updating company:", error);
+      res.status(500).json({ error: "Failed to update company" });
+    }
+  });
+  
+  // Partial update for a company
+  app.patch("/api/admin/companies/:id", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const company = await storage.updateCompany(parseInt(id), req.body);
@@ -262,9 +279,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let leadStatus = 'new';
       
       // Cast pipeline stage to allowed enum value
-      const validPipelineStage = pipelineStage as 'new_lead' | 'contacted' | 'meeting_scheduled' | 'proposal_sent' | 'negotiation' | 'won' | 'lost';
+      const validPipelineStage = pipelineStage as 'new_lead' | 'contacted' | 'website_sent' | 'website_viewed' | 'meeting_scheduled' | 'proposal_sent' | 'negotiation' | 'won' | 'lost';
       
-      if (['contacted', 'meeting_scheduled', 'proposal_sent', 'negotiation'].includes(validPipelineStage)) {
+      if (['contacted', 'website_sent', 'website_viewed', 'meeting_scheduled', 'proposal_sent', 'negotiation'].includes(validPipelineStage)) {
         leadStatus = 'in_pipeline';
       } else if (validPipelineStage === 'won') {
         leadStatus = 'converted';

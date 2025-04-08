@@ -26,7 +26,7 @@ export interface Company {
   // Status fields
   status?: 'prospect' | 'active' | 'inactive' | 'archived';
   leadStatus?: 'new' | 'in_pipeline' | 'converted' | 'lost';
-  pipelineStage?: 'new_lead' | 'contacted' | 'meeting_scheduled' | 'proposal_sent' | 'negotiation' | 'won' | 'lost';
+  pipelineStage?: 'new_lead' | 'contacted' | 'website_sent' | 'website_viewed' | 'meeting_scheduled' | 'proposal_sent' | 'negotiation' | 'won' | 'lost';
   pipelineValue?: number;
   pipelineProbability?: number;
   

@@ -23,7 +23,7 @@ export const users = pgTable("users", {
 export const companyStatusEnum = pgEnum('company_status', ['prospect', 'active', 'inactive', 'archived']);
 
 // Pipeline stage enum for leads and prospects
-export const pipelineStageEnum = pgEnum('pipeline_stage', ['new_lead', 'contacted', 'meeting_scheduled', 'proposal_sent', 'negotiation', 'won', 'lost']);
+export const pipelineStageEnum = pgEnum('pipeline_stage', ['new_lead', 'contacted', 'website_sent', 'website_viewed', 'meeting_scheduled', 'proposal_sent', 'negotiation', 'won', 'lost']);
 
 // Companies table (enhanced with prospect and pipeline fields)
 export const companies = pgTable("companies", {
@@ -218,7 +218,7 @@ export const insertUserSchema = createInsertSchema(users, {
 
 export const insertCompanySchema = createInsertSchema(companies, {
   status: z.enum(['prospect', 'active', 'inactive', 'archived']).default('prospect'),
-  pipelineStage: z.enum(['new_lead', 'contacted', 'meeting_scheduled', 'proposal_sent', 'negotiation', 'won', 'lost']).default('new_lead'),
+  pipelineStage: z.enum(['new_lead', 'contacted', 'website_sent', 'website_viewed', 'meeting_scheduled', 'proposal_sent', 'negotiation', 'won', 'lost']).default('new_lead'),
   leadStatus: z.enum(['new', 'in_pipeline', 'converted', 'lost']).default('new'),
 }).omit({
   id: true, 

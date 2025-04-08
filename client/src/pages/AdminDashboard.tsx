@@ -58,6 +58,7 @@ import {
   Upload,
   ArrowLeft,
   Save,
+  Monitor,
   X
 } from "lucide-react";
 import { Company } from "@/types/company";
@@ -70,7 +71,7 @@ export default function AdminDashboard() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [showCompanyDetail, setShowCompanyDetail] = useState(false);
   const [notes, setNotes] = useState<string>("");
-  const [pipelineStage, setPipelineStage] = useState<string>("");
+  const [pipelineStage, setPipelineStage] = useState<"new_lead" | "contacted" | "website_sent" | "website_viewed" | "meeting_scheduled" | "proposal_sent" | "negotiation" | "won" | "lost">("new_lead");
   
   const { data: companies, isLoading: isLoadingCompanies } = useQuery<Company[]>({
     queryKey: ["/api/admin/companies"],
@@ -568,6 +569,24 @@ export default function AdminDashboard() {
                                 Last contact: {new Date(company.lastContactedAt).toLocaleDateString()}
                               </div>
                             )}
+                            
+                            <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100">
+                              <Badge 
+                                variant="outline" 
+                                className="text-xs"
+                              >
+                                {company.pipelineStage ? company.pipelineStage.replace('_', ' ') : 'New Lead'}
+                              </Badge>
+                              <Link 
+                                href={`/${company.slug}`} 
+                                target="_blank"
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-blue-500 hover:underline text-xs flex items-center"
+                              >
+                                <Monitor className="h-3 w-3 mr-1" />
+                                View Demo Site
+                              </Link>
+                            </div>
                           </CardContent>
                         </Card>
                       ))}
@@ -710,6 +729,20 @@ export default function AdminDashboard() {
                             Contacted
                           </Button>
                           <Button 
+                            variant={pipelineStage === "website_sent" ? "default" : "outline"} 
+                            size="sm"
+                            onClick={() => setPipelineStage("website_sent")}
+                          >
+                            Website Sent
+                          </Button>
+                          <Button 
+                            variant={pipelineStage === "website_viewed" ? "default" : "outline"} 
+                            size="sm"
+                            onClick={() => setPipelineStage("website_viewed")}
+                          >
+                            Website Viewed
+                          </Button>
+                          <Button 
                             variant={pipelineStage === "meeting_scheduled" ? "default" : "outline"} 
                             size="sm"
                             onClick={() => setPipelineStage("meeting_scheduled")}
@@ -737,6 +770,65 @@ export default function AdminDashboard() {
                           >
                             Lost
                           </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Activity Tracking */}
+                  <div className="pt-4 border-t">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-sm font-medium">Site Activity</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <Card className="bg-gray-50">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col items-center">
+                            <h4 className="text-xs text-muted-foreground mb-1">Total Page Views</h4>
+                            <div className="text-2xl font-semibold">12</div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card className="bg-gray-50">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col items-center">
+                            <h4 className="text-xs text-muted-foreground mb-1">Avg. Time on Site</h4>
+                            <div className="text-2xl font-semibold">1:45</div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card className="bg-gray-50">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col items-center">
+                            <h4 className="text-xs text-muted-foreground mb-1">Last Visit</h4>
+                            <div className="text-2xl font-semibold">Today</div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                    <div className="border rounded-md mb-4">
+                      <div className="p-3 bg-muted text-sm font-medium">Recent Visits</div>
+                      <div className="divide-y">
+                        <div className="p-3 text-sm">
+                          <div className="flex justify-between">
+                            <div className="font-medium">Home Page</div>
+                            <div className="text-muted-foreground">10:23 AM, Today</div>
+                          </div>
+                          <div className="text-xs text-muted-foreground">Duration: 2m 15s</div>
+                        </div>
+                        <div className="p-3 text-sm">
+                          <div className="flex justify-between">
+                            <div className="font-medium">Services Page</div>
+                            <div className="text-muted-foreground">Yesterday</div>
+                          </div>
+                          <div className="text-xs text-muted-foreground">Duration: 1m 47s</div>
+                        </div>
+                        <div className="p-3 text-sm">
+                          <div className="flex justify-between">
+                            <div className="font-medium">Contact Page</div>
+                            <div className="text-muted-foreground">Apr 6, 2025</div>
+                          </div>
+                          <div className="text-xs text-muted-foreground">Duration: 38s</div>
                         </div>
                       </div>
                     </div>
@@ -774,9 +866,11 @@ export default function AdminDashboard() {
                         onClick={() => {
                           updateCompanyMutation.mutate({
                             id: selectedCompany!.id,
-                            pipelineStage: pipelineStage,
-                            notes: notes,
-                            lastContactedAt: new Date().toISOString()
+                            updateData: {
+                              pipelineStage: pipelineStage,
+                              notes: notes,
+                              lastContactedAt: new Date().toISOString()
+                            }
                           });
                         }}
                       >
