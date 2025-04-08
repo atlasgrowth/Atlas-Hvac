@@ -62,13 +62,19 @@ export default function CompanyPage() {
     }
   });
 
+  // Reference to track if we've already recorded analytics for this company
+  const analyticsRecorded = useRef(false);
+  
   useEffect(() => {
     // Set page title when company data is loaded
-    if (company) {
+    if (company && !analyticsRecorded.current) {
       // Cast company to the proper type to avoid TypeScript errors
       const companyData = company as Company;
       
       if (companyData.name) {
+        // Set the flag to prevent duplicate analytics
+        analyticsRecorded.current = true;
+        
         document.title = companyData.name;
         
         // Record page visit
@@ -94,7 +100,7 @@ export default function CompanyPage() {
     
     // End session when user leaves the page
     return () => {
-      if (visitorSessionId.current && company) {
+      if (visitorSessionId.current && company && analyticsRecorded.current) {
         const companyData = company as Company;
         const duration = Math.round((new Date().getTime() - startTime.current.getTime()) / 1000); // duration in seconds
         endSessionMutation.mutate({
@@ -103,7 +109,7 @@ export default function CompanyPage() {
         });
       }
     };
-  }, [company, recordVisitMutation, startSessionMutation, updatePipelineStageMutation, endSessionMutation]);
+  }, [company]);
 
   // Mock services data - in a real implementation this would come from the API
   const services: Service[] = [
