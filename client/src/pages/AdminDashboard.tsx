@@ -1,14 +1,34 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect, Link } from "wouter";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Building2, Users, Calendar, BarChart3, Globe, LogOut } from "lucide-react";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Building2,
+  Users,
+  Calendar,
+  Globe,
+  LogOut,
+  BarChart3,
+  Loader2,
+  UserPlus, Phone, Mail, ExternalLink, MapPin
+} from "lucide-react";
 import { Company } from "@/types/company";
 
 export default function AdminDashboard() {
@@ -30,31 +50,42 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [locationFilter, setLocationFilter] = useState<string | null>(null);
   
-  // Filter companies
-  const filteredCompanies = companies?.filter(company => {
-    // Text search filter
-    const matchesSearch = !searchQuery || 
-      company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      company.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      company.state?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // Status filter (prospect, active, etc)
-    const matchesStatus = !statusFilter || company.status === statusFilter;
-    
-    // Location filter (Little Rock, AR or Birmingham, AL)
-    const matchesLocation = !locationFilter || (
+  // Filter functions
+  const matchesSearch = (company: Company) => 
+    !searchQuery || 
+    company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    company.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    company.state?.toLowerCase().includes(searchQuery.toLowerCase());
+
+  const matchesLocation = (company: Company) => 
+    !locationFilter || (
       (locationFilter === "little-rock" && 
         (company.city?.toLowerCase().includes("little rock") || 
-         company.state?.toLowerCase() === "ar" || 
-         company.state?.toLowerCase() === "arkansas")) ||
+        company.state?.toLowerCase() === "ar" || 
+        company.state?.toLowerCase() === "arkansas")) ||
       (locationFilter === "birmingham" && 
         (company.city?.toLowerCase().includes("birmingham") || 
-         company.state?.toLowerCase() === "al" || 
-         company.state?.toLowerCase() === "alabama"))
+        company.state?.toLowerCase() === "al" || 
+        company.state?.toLowerCase() === "alabama"))
     );
-    
-    return matchesSearch && matchesStatus && matchesLocation;
-  });
+
+  const matchesStatus = (company: Company) => 
+    !statusFilter || company.status === statusFilter;
+
+  // Get filtered prospect companies
+  const filteredProspects = companies?.filter(company => 
+    company.status === 'prospect' && matchesSearch(company) && matchesLocation(company)
+  ) || [];
+
+  // Get filtered active clients
+  const filteredClients = companies?.filter(company => 
+    company.status === 'active' && matchesSearch(company) && matchesLocation(company)
+  ) || [];
+
+  // Get all filtered companies (for the Companies tab)
+  const filteredCompanies = companies?.filter(company => 
+    matchesSearch(company) && matchesStatus(company) && matchesLocation(company)
+  ) || [];
   
   // Logout handler
   const handleLogout = () => {
@@ -80,12 +111,20 @@ export default function AdminDashboard() {
             Dashboard
           </Button>
           <Button 
-            variant={activeTab === "companies" ? "default" : "ghost"} 
+            variant={activeTab === "prospects" ? "default" : "ghost"} 
             className="w-full justify-start"
-            onClick={() => setActiveTab("companies")}
+            onClick={() => setActiveTab("prospects")}
           >
             <Building2 className="h-5 w-5 mr-3" />
-            Companies
+            Prospects
+          </Button>
+          <Button 
+            variant={activeTab === "clients" ? "default" : "ghost"} 
+            className="w-full justify-start"
+            onClick={() => setActiveTab("clients")}
+          >
+            <Building2 className="h-5 w-5 mr-3" />
+            Clients
           </Button>
           <Button 
             variant={activeTab === "users" ? "default" : "ghost"} 
@@ -154,12 +193,6 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="md:hidden grid w-full grid-cols-3 mb-8">
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="companies">Companies</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-          </TabsList>
-          
           {/* Dashboard Tab */}
           <TabsContent value="dashboard">
             <div className="grid gap-6 md:grid-cols-3">
@@ -216,7 +249,250 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
           
-          {/* Companies Tab */}
+          {/* Prospects Tab */}
+          <TabsContent value="prospects">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Prospect Management</CardTitle>
+                  <CardDescription>
+                    Manage potential HVAC contractor clients in your sales pipeline
+                  </CardDescription>
+                </div>
+                <Button size="sm">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Add Prospect
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-4 mb-6">
+                  <div className="flex-1">
+                    <Label htmlFor="prospect-search" className="sr-only">Search</Label>
+                    <Input
+                      id="prospect-search"
+                      placeholder="Search by name, city, or state..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Location Filter */}
+                    <div className="space-y-2">
+                      <Label>Location</Label>
+                      <div className="flex flex-wrap gap-2">
+                        <Button 
+                          variant={!locationFilter ? "default" : "outline"}
+                          onClick={() => setLocationFilter(null)}
+                          size="sm"
+                        >
+                          All Locations
+                        </Button>
+                        <Button 
+                          variant={locationFilter === "little-rock" ? "default" : "outline"}
+                          onClick={() => setLocationFilter("little-rock")}
+                          size="sm"
+                        >
+                          Little Rock, AR
+                        </Button>
+                        <Button 
+                          variant={locationFilter === "birmingham" ? "default" : "outline"}
+                          onClick={() => setLocationFilter("birmingham")}
+                          size="sm"
+                        >
+                          Birmingham, AL
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {isLoadingCompanies ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : filteredProspects.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p>No prospects found matching your filters.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredProspects.map((company) => (
+                      <Card key={company.id} className="overflow-hidden">
+                        <CardHeader className="p-4 pb-2">
+                          <CardTitle className="text-lg">{company.name}</CardTitle>
+                          <CardDescription className="flex items-center">
+                            <MapPin className="h-3 w-3 mr-1" />
+                            {company.city}{company.city && company.state ? ', ' : ''}{company.state}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-2 space-y-4">
+                          <div className="text-sm space-y-2">
+                            {company.phone && (
+                              <div className="flex items-center">
+                                <Phone className="h-3 w-3 mr-2" />
+                                <span>{company.phone}</span>
+                              </div>
+                            )}
+                            {company.contactEmail && (
+                              <div className="flex items-center">
+                                <Mail className="h-3 w-3 mr-2" />
+                                <span>{company.contactEmail}</span>
+                              </div>
+                            )}
+                            {company.site && (
+                              <div className="flex items-center">
+                                <ExternalLink className="h-3 w-3 mr-2" />
+                                <a href={company.site} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate">{company.site}</a>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex justify-between items-center pt-2">
+                            <Badge variant="secondary">Prospect</Badge>
+                            <div className="flex gap-2">
+                              <Link href={`/${company.slug}`} target="_blank">
+                                <Button variant="ghost" size="sm">
+                                  Preview
+                                </Button>
+                              </Link>
+                              <Button variant="outline" size="sm">
+                                Contact
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Clients Tab */}
+          <TabsContent value="clients">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Client Management</CardTitle>
+                  <CardDescription>
+                    Manage your active HVAC contractor clients
+                  </CardDescription>
+                </div>
+                <Button size="sm">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Add Client
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-4 mb-6">
+                  <div className="flex-1">
+                    <Label htmlFor="client-search" className="sr-only">Search</Label>
+                    <Input
+                      id="client-search"
+                      placeholder="Search by name, city, or state..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Location Filter */}
+                    <div className="space-y-2">
+                      <Label>Location</Label>
+                      <div className="flex flex-wrap gap-2">
+                        <Button 
+                          variant={!locationFilter ? "default" : "outline"}
+                          onClick={() => setLocationFilter(null)}
+                          size="sm"
+                        >
+                          All Locations
+                        </Button>
+                        <Button 
+                          variant={locationFilter === "little-rock" ? "default" : "outline"}
+                          onClick={() => setLocationFilter("little-rock")}
+                          size="sm"
+                        >
+                          Little Rock, AR
+                        </Button>
+                        <Button 
+                          variant={locationFilter === "birmingham" ? "default" : "outline"}
+                          onClick={() => setLocationFilter("birmingham")}
+                          size="sm"
+                        >
+                          Birmingham, AL
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {isLoadingCompanies ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : filteredClients.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p>No active clients found matching your filters.</p>
+                  </div>
+                ) : (
+                  <div className="border rounded-md">
+                    <div className="grid grid-cols-12 bg-muted p-3 text-sm font-medium">
+                      <div className="col-span-4">Name</div>
+                      <div className="col-span-2">Location</div>
+                      <div className="col-span-2">Website</div>
+                      <div className="col-span-2">Last Contact</div>
+                      <div className="col-span-2">Actions</div>
+                    </div>
+                    {filteredClients.map((company) => (
+                      <div key={company.id} className="grid grid-cols-12 p-3 text-sm border-t hover:bg-gray-50">
+                        <div className="col-span-4 flex items-center truncate">
+                          <span className="font-medium truncate">{company.name}</span>
+                        </div>
+                        <div className="col-span-2 truncate">
+                          {company.city}{company.city && company.state ? ', ' : ''}{company.state}
+                        </div>
+                        <div className="col-span-2">
+                          {company.site ? (
+                            <a 
+                              href={company.site} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-500 hover:underline flex items-center"
+                            >
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              Visit
+                            </a>
+                          ) : (
+                            <span className="text-gray-400">Not set</span>
+                          )}
+                        </div>
+                        <div className="col-span-2 text-gray-500">
+                          {company.lastContactedAt ? 
+                            new Date(company.lastContactedAt).toLocaleDateString() : 
+                            'Never'}
+                        </div>
+                        <div className="col-span-2 flex gap-2">
+                          <Link href={`/${company.slug}`} target="_blank">
+                            <Button variant="ghost" size="sm">
+                              Preview
+                            </Button>
+                          </Link>
+                          <Button variant="outline" size="sm">
+                            Manage
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Companies Tab - Kept for backward compatibility, will be removed later */}
           <TabsContent value="companies">
             <Card>
               <CardHeader>
@@ -308,7 +584,7 @@ export default function AdminDashboard() {
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
-                ) : filteredCompanies?.length === 0 ? (
+                ) : filteredCompanies.length === 0 ? (
                   <div className="text-center py-8">
                     <p>No companies found matching your filters.</p>
                   </div>
@@ -321,7 +597,7 @@ export default function AdminDashboard() {
                       <div className="col-span-2">Last Contact</div>
                       <div className="col-span-2">Actions</div>
                     </div>
-                    {filteredCompanies?.map((company) => (
+                    {filteredCompanies.map((company) => (
                       <div key={company.id} className="grid grid-cols-12 p-3 text-sm border-t hover:bg-gray-50">
                         <div className="col-span-4 flex items-center truncate">
                           <span className="font-medium truncate">{company.name}</span>
@@ -360,20 +636,17 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           {/* Users Tab */}
           <TabsContent value="users">
             <Card>
               <CardHeader>
                 <CardTitle>User Management</CardTitle>
-                <CardDescription>
-                  Manage system users and their permissions
-                </CardDescription>
+                <CardDescription>Manage user accounts and permissions</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">
-                  User management functionality is coming soon. This will allow you to add,
-                  edit, and remove users from the system, as well as manage their roles.
+                <p className="text-sm text-muted-foreground">
+                  User management functionality is coming soon
                 </p>
               </CardContent>
             </Card>
@@ -383,15 +656,12 @@ export default function AdminDashboard() {
           <TabsContent value="calendar">
             <Card>
               <CardHeader>
-                <CardTitle>Calendar</CardTitle>
-                <CardDescription>
-                  Manage appointments and schedule
-                </CardDescription>
+                <CardTitle>Calendar & Appointments</CardTitle>
+                <CardDescription>Schedule and manage appointments</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">
-                  Calendar functionality is coming soon. This will allow you to track appointments,
-                  set reminders, and manage your schedule across all clients.
+                <p className="text-sm text-muted-foreground">
+                  Calendar functionality is coming soon
                 </p>
               </CardContent>
             </Card>
@@ -402,14 +672,11 @@ export default function AdminDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle>Domain Management</CardTitle>
-                <CardDescription>
-                  Manage custom domains for your client websites
-                </CardDescription>
+                <CardDescription>Manage custom domains for client websites</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">
-                  Domain management functionality is coming soon. This will allow you to configure
-                  custom domains for each client, set up DNS records, and manage SSL certificates.
+                <p className="text-sm text-muted-foreground">
+                  Domain management functionality is coming soon
                 </p>
               </CardContent>
             </Card>
