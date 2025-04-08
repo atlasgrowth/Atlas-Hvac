@@ -11,6 +11,13 @@ if (!connectionString) {
 
 console.log("Connecting to database...");
 
-// Ensure the connection string is passed as a string
-export const client = postgres(connectionString as string);
+// Configure connection with SSL options
+const connectionOptions = {
+  ssl: {
+    rejectUnauthorized: false // Allow self-signed certificates
+  }
+};
+
+// Ensure the connection string is passed as a string with SSL options
+export const client = postgres(connectionString as string, connectionOptions);
 export const db = drizzle(client, { schema });
