@@ -22,7 +22,10 @@ export const users = pgTable("users", {
 // Status enum for companies/prospects
 export const companyStatusEnum = pgEnum('company_status', ['prospect', 'active', 'inactive', 'archived']);
 
-// Companies table (enhanced with prospect fields)
+// Pipeline stage enum for leads and prospects
+export const pipelineStageEnum = pgEnum('pipeline_stage', ['new_lead', 'contacted', 'meeting_scheduled', 'proposal_sent', 'negotiation', 'won', 'lost']);
+
+// Companies table (enhanced with prospect and pipeline fields)
 export const companies = pgTable("companies", {
   id: serial("id").primaryKey(),
   slug: text("slug").notNull().unique(),
@@ -47,16 +50,29 @@ export const companies = pgTable("companies", {
   photo: text("photo"),
   categories: text("categories").array(),
   primaryCategory: text("primary_category"),
-  // New fields for prospect/client management
+  
+  // Fields for prospect/client management
   status: companyStatusEnum("status").default('prospect'),
+  
+  // Pipeline and lead management fields
+  leadStatus: text("lead_status").default('new'), // new, in_pipeline, converted, lost
+  pipelineStage: pipelineStageEnum("pipeline_stage").default('new_lead'),
+  pipelineValue: integer("pipeline_value"), // Estimated deal value
+  pipelineProbability: integer("pipeline_probability"), // Percentage, e.g. 25, 50, 75
+  
+  // Contact fields  
   assignedUserId: integer("assigned_user_id").references(() => users.id),
   contactName: text("contact_name"),
   contactEmail: text("contact_email"),
   contactPhone: text("contact_phone"),
   notes: text("notes"),
   lastContactedAt: timestamp("last_contacted_at"),
+  nextFollowUpDate: timestamp("next_follow_up_date"),
+  
+  // Domain fields
   customDomain: text("custom_domain"),
   domainSetupComplete: boolean("domain_setup_complete").default(false),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -116,9 +132,28 @@ export const visitorSessions = pgTable("visitor_sessions", {
   city: text("city"),
 });
 
+// Contact interaction types
+export const interactionTypeEnum = pgEnum('interaction_type', ['call', 'email', 'meeting', 'note', 'task']);
+
+// Contact interactions table for tracking all prospect/client interactions
+export const contactInteractions = pgTable("contact_interactions", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().references(() => companies.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  type: interactionTypeEnum("type").notNull(),
+  summary: text("summary").notNull(),
+  details: text("details"),
+  outcome: text("outcome"),
+  duration: integer("duration"), // in minutes for calls/meetings
+  scheduledAt: timestamp("scheduled_at"), // for future tasks/meetings
+  completedAt: timestamp("completed_at"), // for tracking completion
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Define relationships
 export const usersRelations = relations(users, ({ many }) => ({
   assignedCompanies: many(companies),
+  contactInteractions: many(contactInteractions),
 }));
 
 export const companiesRelations = relations(companies, ({ one, many }) => ({
@@ -130,6 +165,18 @@ export const companiesRelations = relations(companies, ({ one, many }) => ({
   reviews: many(reviews),
   pageVisits: many(pageVisits),
   visitorSessions: many(visitorSessions),
+  contactInteractions: many(contactInteractions),
+}));
+
+export const contactInteractionsRelations = relations(contactInteractions, ({ one }) => ({
+  company: one(companies, {
+    fields: [contactInteractions.companyId],
+    references: [companies.id],
+  }),
+  user: one(users, {
+    fields: [contactInteractions.userId],
+    references: [users.id],
+  }),
 }));
 
 export const servicesRelations = relations(services, ({ one }) => ({
@@ -171,6 +218,8 @@ export const insertUserSchema = createInsertSchema(users, {
 
 export const insertCompanySchema = createInsertSchema(companies, {
   status: z.enum(['prospect', 'active', 'inactive', 'archived']).default('prospect'),
+  pipelineStage: z.enum(['new_lead', 'contacted', 'meeting_scheduled', 'proposal_sent', 'negotiation', 'won', 'lost']).default('new_lead'),
+  leadStatus: z.enum(['new', 'in_pipeline', 'converted', 'lost']).default('new'),
 }).omit({
   id: true, 
   createdAt: true, 
@@ -196,6 +245,13 @@ export const insertVisitorSessionSchema = createInsertSchema(visitorSessions).om
   id: true
 });
 
+export const insertContactInteractionSchema = createInsertSchema(contactInteractions, {
+  type: z.enum(['call', 'email', 'meeting', 'note', 'task']).default('note'),
+}).omit({
+  id: true,
+  createdAt: true
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -214,3 +270,6 @@ export type PageVisit = typeof pageVisits.$inferSelect;
 
 export type InsertVisitorSession = z.infer<typeof insertVisitorSessionSchema>;
 export type VisitorSession = typeof visitorSessions.$inferSelect;
+
+export type InsertContactInteraction = z.infer<typeof insertContactInteractionSchema>;
+export type ContactInteraction = typeof contactInteractions.$inferSelect;
