@@ -143,13 +143,45 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getCompany(id: number): Promise<Company | undefined> {
-    const [company] = await db.select().from(companies).where(eq(companies.id, id));
-    return company;
+    try {
+      const [company] = await db.select().from(companies).where(eq(companies.id, id));
+      
+      // If no company is found, return undefined
+      if (!company) return undefined;
+      
+      // Return company with default values for any missing fields
+      return {
+        ...company,
+        leadStatus: company.leadStatus || 'new',
+        pipelineStage: company.pipelineStage || 'new_lead',
+        pipelineValue: company.pipelineValue || 0,
+        pipelineProbability: company.pipelineProbability || 0
+      };
+    } catch (error) {
+      console.error("Error fetching company by id:", error);
+      return undefined;
+    }
   }
   
   async getCompanyBySlug(slug: string): Promise<Company | undefined> {
-    const [company] = await db.select().from(companies).where(eq(companies.slug, slug));
-    return company;
+    try {
+      const [company] = await db.select().from(companies).where(eq(companies.slug, slug));
+      
+      // If no company is found, return undefined
+      if (!company) return undefined;
+      
+      // Return company with default values for any missing fields
+      return {
+        ...company,
+        leadStatus: company.leadStatus || 'new',
+        pipelineStage: company.pipelineStage || 'new_lead',
+        pipelineValue: company.pipelineValue || 0,
+        pipelineProbability: company.pipelineProbability || 0
+      };
+    } catch (error) {
+      console.error("Error fetching company by slug:", error);
+      return undefined;
+    }
   }
   
   async createCompany(insertCompany: InsertCompany): Promise<Company> {

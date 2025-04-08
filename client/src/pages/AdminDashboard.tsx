@@ -577,7 +577,7 @@ export default function AdminDashboard() {
                               >
                                 {company.pipelineStage ? company.pipelineStage.replace('_', ' ') : 'New Lead'}
                               </Badge>
-                              <Link 
+                              <a 
                                 href={`/${company.slug}`} 
                                 target="_blank"
                                 onClick={(e) => e.stopPropagation()}
@@ -585,7 +585,7 @@ export default function AdminDashboard() {
                               >
                                 <Monitor className="h-3 w-3 mr-1" />
                                 View Demo Site
-                              </Link>
+                              </a>
                             </div>
                           </CardContent>
                         </Card>
@@ -985,11 +985,11 @@ export default function AdminDashboard() {
                           <div className="flex justify-between items-center pt-2">
                             <Badge variant="secondary">Prospect</Badge>
                             <div className="flex gap-2">
-                              <Link href={`/${company.slug}`} target="_blank">
+                              <a href={`/${company.slug}`} target="_blank">
                                 <Button variant="ghost" size="sm">
                                   Preview
                                 </Button>
-                              </Link>
+                              </a>
                               <Button variant="outline" size="sm">
                                 Contact
                               </Button>
@@ -1109,11 +1109,11 @@ export default function AdminDashboard() {
                             'Never'}
                         </div>
                         <div className="col-span-2 flex gap-2">
-                          <Link href={`/${company.slug}`} target="_blank">
+                          <a href={`/${company.slug}`} target="_blank">
                             <Button variant="ghost" size="sm">
                               Preview
                             </Button>
-                          </Link>
+                          </a>
                           <Button variant="outline" size="sm">
                             Manage
                           </Button>
@@ -1254,11 +1254,11 @@ export default function AdminDashboard() {
                             'Never'}
                         </div>
                         <div className="col-span-2 flex gap-2">
-                          <Link href={`/${company.slug}`} target="_blank">
+                          <a href={`/${company.slug}`} target="_blank">
                             <Button variant="ghost" size="sm">
                               Preview
                             </Button>
-                          </Link>
+                          </a>
                           <Button variant="outline" size="sm">
                             Edit
                           </Button>
